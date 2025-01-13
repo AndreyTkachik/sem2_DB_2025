@@ -82,14 +82,14 @@
 
 Пример аналогичных join_condition:
 
-```postgresql
+```sql
 ON left_table.a = right_table.a AND left_table.b = right_table.b
 
 USING (a, b)
 ```
 
 Ещё более компактный вариант указания join_condition – указание `NATURAL` перед join_type.
-```postgresql
+```sql
 SELECT select_list 
 FROM T1 NATURAL JOIN T2;
 ```
@@ -138,7 +138,7 @@ CREATE TABLE flight_schedule (
 #### Создание ключей
 
 `PRIMARY KEY`
-```postgresql
+```sql
 CREATE TABLE PERSON (
     ID         INTEGER      PRIMARY KEY,
     LAST_NAME  VARCHAR(255) NOT NULL,
@@ -166,7 +166,7 @@ DROP CONSTRAINT PK_Person;
 ```
 
 `FOREIGN KEY`
-```postgresql
+```sql
 CREATE TABLE ORDER (
     ORDER_ID     INTEGER,
     ORDER_NUMBER INTEGER NOT NULL,
@@ -197,7 +197,7 @@ ADD FOREIGN KEY (PERSON_ID) REFERENCES PERSON(PERSON_ID);
 
 Напомним как выглядит синтаксис запроса:
 
-```postgresql
+```sql
 SELECT
   [ALL | DISTINCT [ON (expression [, ...] )] ]
   [* | expression [AS output_name] [, ...] ]
@@ -223,7 +223,7 @@ SELECT
 #### 2.3.2 Функции ветвления
 
 * `IF ... THEN ... [ELSIF ... THEN ... ELSE ...] END IF` - ветвления, **пример**:
-```postgresql
+```sql
 SELECT
     IF number = 0 THEN
         'zero'
@@ -238,7 +238,7 @@ FROM
     numbers
 ```
 * `CASE [...] WHEN ... THEN ... ELSE ... END CASE` - еще один аналог ветвлений, **пример**:
-```postgresql
+```sql
 SELECT
     CASE 
         WHEN number = 0 THEN
@@ -257,7 +257,7 @@ FROM
 #### 2.3.3 Функция `DISTINCT`
 
 * `DISTINCT ON` - исключает строки, совпадающие по всем указанным выражениям, **пример**:
-```postgresql
+```sql
 -- вывести кол-во уникальных отделов
 SELECT
     count(DISTINCT ON department_nm)
@@ -265,47 +265,176 @@ FROM
     salary;
 ```
 
-#### 2.3.4 Клчевое слово `WITH`
+**Примеры**:
 
-`WITH` предоставляет способ записывать дополнительные операторы для применения в больших запросах. 
-Эти операторы, которые также называют общими табличными выражениями (Common Table Expressions, CTE), 
-можно представить как определения временных таблиц, существующих только для одного запроса. 
-Более подробно про СТЕ будет на следующих семинарах.
-**Пример**:
-```postgresql
-WITH 
-    regional_sales AS (
-        SELECT 
-            region, 
-            SUM(amount) AS total_sales
-        FROM 
-            orders
-        GROUP BY 
-            region
-    ), 
-    top_regions AS (
-        SELECT 
-            region
-        FROM 
-            regional_sales
-        WHERE 
-            total_sales > (SELECT SUM(total_sales)/10 FROM regional_sales)
-   )
-SELECT 
-    region,
-    product,
-    SUM(quantity) AS product_units,
-    SUM(amount) AS product_sales
-FROM 
-    orders
-WHERE 
-    region IN (SELECT region FROM top_regions)
-GROUP BY 
-    region, 
-    product;
+* `WHERE`:
+| id  | name       | department | salary | hire_date  | manager_id |
+|------|------------|------------|--------|------------|------------|
+| 1    | Alice      | IT         | 70000  | 2020-05-10 | 3          |
+| 2    | Bob        | HR         | 50000  | 2019-03-20 | NULL       |
+| 3    | Charlie    | IT         | 90000  | 2018-09-15 | NULL       |
+| 4    | Diana      | Finance    | 80000  | 2021-01-12 | 3          |
+| 5    | Eve        | IT         | 60000  | 2022-06-05 | 1          |
+
+```sql
+SELECT name, salary
+FROM employees
+WHERE department = 'IT' AND salary > 65000;
 ```
 
+| name   | salary |
+|--------|--------|
+| Alice  | 70000  |
+| Charlie| 90000  |
+
+
+* Использование `NULL` в условиях:
+
+| project_id | name        | start_date  | end_date    |
+|------------|-------------|-------------|-------------|
+| 1          | Project A   | 2023-01-01  | 2023-06-30  |
+| 2          | Project B   | 2023-03-01  | NULL        |
+| 3          | Project C   | 2022-11-15  | 2023-03-15  |
+| 4          | Project D   | 2023-05-10  | NULL        |
+
+```sql
+SELECT name, end_date
+FROM projects
+WHERE end_date IS NULL;
+```
+
+| name       | end_date |
+|------------|----------|
+| Project B  | NULL     |
+| Project D  | NULL     |
+
+* `DISTINCT`:
+
+| order_id | customer_id | product   | quantity |
+|----------|-------------|-----------|----------|
+| 1        | 101         | Laptop    | 2        |
+| 2        | 102         | Monitor   | 1        |
+| 3        | 101         | Laptop    | 2        |
+| 4        | 103         | Keyboard  | 1        |
+| 5        | 102         | Monitor   | 1        |
+
+```sql
+SELECT DISTINCT customer_id, product
+FROM orders;
+```
+
+| customer_id | product   |
+|-------------|-----------|
+| 101         | Laptop    |
+| 102         | Monitor   |
+| 103         | Keyboard  |
+
+* `IN`:
+
+| department_id | department_name |
+|---------------|-----------------|
+| 1             | IT              |
+| 2             | HR              |
+| 3             | Finance         |
+| 4             | Marketing       |
+
+```sql
+SELECT department_name
+FROM departments
+WHERE department_id IN (1, 3);
+```
+
+| department_name |
+|-----------------|
+| IT              |
+| Finance         |
+
+* `LIKE`:
+
+| customer_id | customer_name |
+|-------------|---------------|
+| 1           | Alice Johnson |
+| 2           | Bob Smith     |
+| 3           | Charlie Brown |
+| 4           | Diana Prince  |
+
+```sql
+SELECT customer_name
+FROM customers
+WHERE customer_name LIKE 'A%';
+```
+
+| customer_name  |
+|----------------|
+| Alice Johnson  |
+
+* `CASE`:
+
+| sale_id | amount |
+|---------|--------|
+| 1       | 150    |
+| 2       | 250    |
+| 3       | 100    |
+| 4       | 300    |
+
+```sql
+SELECT sale_id, 
+       CASE 
+           WHEN amount < 200 THEN 'Low'
+           WHEN amount BETWEEN 200 AND 300 THEN 'Medium'
+           ELSE 'High'
+       END AS category
+FROM sales;
+```
+
+| sale_id | category |
+|---------|----------|
+| 1       | Low      |
+| 2       | Medium   |
+| 3       | Low      |
+| 4       | High     |
+
+* Сортировка с `NULLS FIRST`:
+
+| review_id | product_id | rating |
+|-----------|------------|--------|
+| 1         | 101        | 5      |
+| 2         | 102        | NULL   |
+| 3         | 103        | 4      |
+| 4         | 104        | NULL   |
+
+```sql
+SELECT product_id, rating
+FROM reviews
+ORDER BY rating DESC NULLS FIRST;
+```
+
+| product_id | rating |
+|------------|--------|
+| 102        | NULL   |
+| 104        | NULL   |
+| 101        | 5      |
+| 103        | 4      | 
+
 ### Практическая часть
+
+#### Справка по практической части
+
+Часто для удобной работы с данными можно использовать готовые датасеты различных форматов.
+Чтобы загрузить в БД датасет из файлов расширения `.csv` можно воспользоваться внутренним функционалом PostgreSQL.
+
+**Пример**:
+```sql
+COPY table_name (column1, column2, column3)
+FROM '/path/to/your/file.csv'
+DELIMITER ','
+CSV HEADER;
+```
+Где:
+* `table_name`: Имя таблицы, в которую загружаются данные.
+* `/path/to/your/file.csv`: Полный путь к файлу на сервере PostgreSQL.
+* `DELIMITER`: Разделитель (по умолчанию — запятая).
+* `CSV HEADER`: Указывает, что первая строка содержит заголовки.
 
 1. Создать схему sem_2:  
 
